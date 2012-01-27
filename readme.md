@@ -1,4 +1,4 @@
-#TextMate Language Grammar for Demandware ISML
+#TextMate Language Grammar (tmLanguage) for Demandware ISML
 
 A grammar to get nice syntax highlighting for the poor souls who have to work on Demandware ISML, yet are smart enough to not use UXStudio.
 
