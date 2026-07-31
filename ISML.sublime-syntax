@@ -1,0 +1,340 @@
+%YAML 1.2
+---
+# Syntax definition for Demandware / Salesforce B2C Commerce ISML.
+# Native Sublime Text 3 & 4 grammar, ported from ISML.tmLanguage.
+#
+# Scope names are kept close to the original TextMate grammar so existing
+# color schemes keep highlighting the same tokens. ISML-specific constructs
+# handled here:
+#   * <is...> tags            -> support.function
+#   * <iscomment>...</iscomment>
+#   * <isscript>...</isscript> with embedded JavaScript
+#   * ${ ... } interpolation   with embedded JavaScript
+#
+# See https://www.sublimetext.com/docs/syntax.html
+name: ISML
+scope: text.html.isml
+
+file_extensions:
+  - isml
+
+variables:
+  isml_tag_name: 'is[a-zA-Z0-9:]+'
+  html_structure_tags: 'body|head|html'
+  html_block_tags: 'address|blockquote|dd|div|dl|dt|fieldset|form|frame|frameset|h1|h2|h3|h4|h5|h6|iframe|noframes|object|ol|p|ul|applet|center|dir|hr|menu|pre'
+  html_inline_tags: 'a|abbr|acronym|area|b|base|basefont|bdo|big|br|button|caption|cite|code|col|colgroup|del|dfn|em|font|i|img|input|ins|isindex|kbd|label|legend|li|link|map|meta|noscript|optgroup|option|param|q|s|samp|select|small|span|strike|strong|sub|sup|table|tbody|td|textarea|tfoot|th|thead|title|tr|tt|u|var'
+
+contexts:
+  main:
+    - include: xml-declaration
+    - include: html-comment
+    - include: isml-comment
+    - include: isml-script
+    - include: isml-tags
+    - include: sgml
+    - include: style-tag
+    - include: script-tag
+    - include: html-tags
+    - include: entities
+    - include: bad-angle
+    - include: interpolation
+
+###############################################################################
+# ISML expressions: ${ ... }
+###############################################################################
+  interpolation:
+    - match: '\$\{'
+      scope: punctuation.section.interpolation.begin.isml
+      embed: scope:source.js
+      embed_scope: source.js.embedded.isml
+      escape: '\}'
+      escape_captures:
+        0: punctuation.section.interpolation.end.isml
+
+###############################################################################
+# ISML comments: <iscomment> ... </iscomment>
+###############################################################################
+  isml-comment:
+    - match: '<iscomment>'
+      scope: punctuation.definition.comment.begin.isml
+      push:
+        - meta_scope: comment.block.isml
+        - match: '</iscomment>'
+          scope: punctuation.definition.comment.end.isml
+          pop: true
+
+###############################################################################
+# ISML server-side script: <isscript> ... </isscript> (embedded JavaScript)
+###############################################################################
+  isml-script:
+    - match: '(<)(isscript)\b'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: support.function
+      push:
+        - meta_scope: meta.tag.isml
+        - match: '/>'
+          scope: punctuation.definition.tag.end.html
+          pop: true
+        - match: '>'
+          scope: punctuation.definition.tag.end.html
+          set: isml-script-body
+        - include: tag-stuff
+  isml-script-body:
+    - match: '(</)(isscript)(>)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: support.function
+        3: punctuation.definition.tag.end.html
+      pop: true
+    - match: ''
+      embed: scope:source.js
+      embed_scope: source.js.embedded.isml
+      escape: '(?=</isscript>)'
+
+###############################################################################
+# All other ISML tags: <isif>, <isloop>, <isset>, <isprint>, <isinclude> ...
+###############################################################################
+  isml-tags:
+    - match: '(</?)({{isml_tag_name}})'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: support.function
+      push:
+        - meta_scope: meta.tag.isml
+        - include: tag-body
+
+###############################################################################
+# HTML processing instructions and declarations
+###############################################################################
+  xml-declaration:
+    - match: '(<\?)(xml)'
+      captures:
+        1: punctuation.definition.tag.html
+        2: entity.name.tag.xml.html
+      push:
+        - meta_scope: meta.tag.preprocessor.xml.html
+        - match: '\?>'
+          scope: punctuation.definition.tag.html
+          pop: true
+        - include: tag-generic-attribute
+        - include: string-double-quoted
+        - include: string-single-quoted
+
+  html-comment:
+    - match: '<!-{2,3}'
+      scope: punctuation.definition.comment.html
+      push:
+        - meta_scope: comment.block.html
+        - match: '-{2,3}\s*>'
+          scope: punctuation.definition.comment.html
+          pop: true
+        - match: '--'
+          scope: invalid.illegal.bad-comments-or-CDATA.html
+        - include: interpolation
+
+  sgml:
+    - match: '<!'
+      scope: punctuation.definition.tag.html
+      push:
+        - meta_scope: meta.tag.sgml.html
+        - match: '(?i:DOCTYPE)'
+          scope: entity.name.tag.doctype.html
+          push:
+            - meta_scope: meta.tag.sgml.doctype.html
+            - match: '(?=>)'
+              pop: true
+            - match: '"[^">]*"'
+              scope: string.quoted.double.doctype.identifiers-and-DTDs.html
+        - match: '\[CDATA\['
+          push:
+            - meta_scope: constant.other.inline-data.html
+            - match: '\]\](?=>)'
+              pop: true
+        - match: '(\s*)(?!--|>)\S(\s*)'
+          scope: invalid.illegal.bad-comments-or-CDATA.html
+        - match: '>'
+          scope: punctuation.definition.tag.html
+          pop: true
+
+###############################################################################
+# Embedded CSS: <style> ... </style>
+###############################################################################
+  style-tag:
+    - match: '(<)((?i:style))\b(?![^>]*/>)'
+      captures:
+        1: punctuation.definition.tag.html
+        2: entity.name.tag.style.html
+      push:
+        - meta_scope: meta.tag.style.html
+        - match: '>'
+          scope: punctuation.definition.tag.html
+          set: style-content
+        - include: tag-stuff
+  style-content:
+    - match: '(</)((?i:style))(>)'
+      captures:
+        1: punctuation.definition.tag.html
+        2: entity.name.tag.style.html
+        3: punctuation.definition.tag.html
+      pop: true
+    - match: ''
+      embed: scope:source.css
+      embed_scope: source.css.embedded.html
+      escape: '(?=</(?i:style)>)'
+
+###############################################################################
+# Embedded JavaScript: <script> ... </script>
+###############################################################################
+  script-tag:
+    - match: '(<)((?i:script))\b(?![^>]*/>)'
+      captures:
+        1: punctuation.definition.tag.html
+        2: entity.name.tag.script.html
+      push:
+        - meta_scope: meta.tag.script.html
+        - match: '>'
+          scope: punctuation.definition.tag.html
+          set: script-content
+        - include: tag-stuff
+  script-content:
+    - match: '(</)((?i:script))(>)'
+      captures:
+        1: punctuation.definition.tag.html
+        2: entity.name.tag.script.html
+        3: punctuation.definition.tag.html
+      pop: true
+    - match: ''
+      embed: scope:source.js
+      embed_scope: source.js.embedded.html
+      escape: '(?=</(?i:script)>)'
+
+###############################################################################
+# Generic HTML tags
+###############################################################################
+  html-tags:
+    - include: html-tag-structure
+    - include: html-tag-block
+    - include: html-tag-inline
+    - include: html-tag-other
+
+  html-tag-structure:
+    - match: '(</?)((?i:{{html_structure_tags}})\b)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: entity.name.tag.structure.any.html
+      push:
+        - meta_scope: meta.tag.structure.any.html
+        - include: tag-body
+
+  html-tag-block:
+    - match: '(</?)((?i:{{html_block_tags}})\b)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: entity.name.tag.block.any.html
+      push:
+        - meta_scope: meta.tag.block.any.html
+        - include: tag-body
+
+  html-tag-inline:
+    - match: '(</?)((?i:{{html_inline_tags}})\b)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: entity.name.tag.inline.any.html
+      push:
+        - meta_scope: meta.tag.inline.any.html
+        - include: tag-body
+
+  html-tag-other:
+    - match: '(</?)([a-zA-Z0-9:]+)'
+      captures:
+        1: punctuation.definition.tag.begin.html
+        2: entity.name.tag.other.html
+      push:
+        - meta_scope: meta.tag.other.html
+        - include: tag-body
+
+###############################################################################
+# Shared building blocks
+###############################################################################
+  tag-body:
+    - match: '(?: ?/)?>'
+      scope: punctuation.definition.tag.end.html
+      pop: true
+    - include: tag-stuff
+
+  tag-stuff:
+    - include: tag-id-attribute
+    - include: tag-generic-attribute
+    - include: string-double-quoted
+    - include: string-single-quoted
+    - include: interpolation
+
+  tag-generic-attribute:
+    - match: '\b([a-zA-Z\-:]+)'
+      scope: entity.other.attribute-name.html
+
+  # `id` attributes feed Sublime's symbol list via meta.toc-list.id.html
+  tag-id-attribute:
+    - match: '\b(id)\b\s*(=)\s*(")'
+      captures:
+        1: entity.other.attribute-name.id.html
+        2: punctuation.separator.key-value.html
+        3: punctuation.definition.string.begin.html
+      push:
+        - meta_scope: string.quoted.double.html
+        - meta_content_scope: meta.toc-list.id.html
+        - match: '"'
+          scope: punctuation.definition.string.end.html
+          pop: true
+        - include: interpolation
+        - include: entities
+    - match: "\\b(id)\\b\\s*(=)\\s*(')"
+      captures:
+        1: entity.other.attribute-name.id.html
+        2: punctuation.separator.key-value.html
+        3: punctuation.definition.string.begin.html
+      push:
+        - meta_scope: string.quoted.single.html
+        - meta_content_scope: meta.toc-list.id.html
+        - match: "'"
+          scope: punctuation.definition.string.end.html
+          pop: true
+        - include: interpolation
+        - include: entities
+
+  string-double-quoted:
+    - match: '"'
+      scope: punctuation.definition.string.begin.html
+      push:
+        - meta_scope: string.quoted.double.html
+        - match: '"'
+          scope: punctuation.definition.string.end.html
+          pop: true
+        - include: interpolation
+        - include: entities
+
+  string-single-quoted:
+    - match: "'"
+      scope: punctuation.definition.string.begin.html
+      push:
+        - meta_scope: string.quoted.single.html
+        - match: "'"
+          scope: punctuation.definition.string.end.html
+          pop: true
+        - include: entities
+
+  entities:
+    - match: '(&)([a-zA-Z0-9]+|#[0-9]+|#x[0-9a-fA-F]+)(;)'
+      scope: constant.character.entity.html
+      captures:
+        1: punctuation.definition.entity.html
+        3: punctuation.definition.entity.html
+    - match: '&'
+      scope: invalid.illegal.bad-ampersand.html
+
+  bad-angle:
+    - match: '<>'
+      scope: invalid.illegal.incomplete.html
+    - match: '<'
+      scope: invalid.illegal.bad-angle-bracket.html

@@ -3,7 +3,7 @@
 <plist version="1.0">
 <dict>
 	<key>comment</key>
-	<string>Syntax definition for Demandware ISML. Modified from HTML</string>
+	<string>Syntax definition for Demandware ISML. Modified from HTML. Regex adjusted for Sublime Text 3/4 compatibility (no possessive quantifiers or atomic groups).</string>
 	<key>fileTypes</key>
 	<array>
 		<string>isml</string>
@@ -12,7 +12,7 @@
 	<string>(?x)
 		(&lt;(?i:head|body|table|thead|tbody|tfoot|tr|div|select|fieldset|style|script|ul|ol|li|form|dl)\b.*?&gt;
 		|&lt;!--(?!.*--\s*&gt;)
-		|^&lt;!--\ \#tminclude\ (?&gt;.*?--&gt;)$
+		|^&lt;!--\ \#tminclude\ (?:.*?--&gt;)$
 		|&lt;\?(?:php)?.*\b(if|for(each)?|while)\b.+:
 		|\{\{?(if|foreach|capture|literal|foreach|php|section|strip)
 		|\{\s*($|\?&gt;\s*$|//|/\*(.*\*/\s*$|(?!.*?\*/)))
@@ -34,7 +34,7 @@
 	<array>
 		<dict>
 			<key>begin</key>
-			<string>(&lt;)([a-zA-Z0-9:]++)(?=[^&gt;]*&gt;&lt;/\2&gt;)</string>
+			<string>(&lt;)([a-zA-Z0-9:]+)(?=[^&gt;]*&gt;&lt;/\2&gt;)</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
@@ -207,7 +207,7 @@
 		</dict>
 		<dict>
 			<key>begin</key>
-			<string>&lt;/?(is[a-zA-Z0-9:]++)</string>
+			<string>&lt;/?(is[a-zA-Z0-9:]+)</string>
 			<key>beginCaptures</key>
 			<dict>
 				<key>1</key>
